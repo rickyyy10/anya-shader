@@ -1,0 +1,5 @@
+.DS_Store
+*.glb
+channels/*.png
+photo/
+preview_front.png
