@@ -150,9 +150,9 @@ out vec4 outColor;
       const bitmap = await createImageBitmap(blob, {
         colorSpaceConversion: isDataTexture ? "none" : "default",
         premultiplyAlpha: "none",
-        // The desk-scene Shader compensates the extension's default VFlip=ON.
-        // Flip every source here so local testing matches that Shadertoy setup.
-        imageOrientation: "flipY"
+        // Packed data mirrors the extension's VFlip=ON default; the visible
+        // albedo atlas stays unflipped so its glTF UV islands remain aligned.
+        imageOrientation: isDataTexture ? "flipY" : "none"
       });
 
       const texture = gl.createTexture();

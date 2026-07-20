@@ -4,7 +4,7 @@
     This shader intersects the real triangles extracted from anya_final.glb. It does
     not approximate the figurine with SDF primitives.
 
-    Channel setup (this scene intentionally uses VFlip ON for every channel):
+    Channel setup (packed data and the visual atlas use separate VFlip states):
       iChannel0 = channels/anya_bvh.png
                   Filter=Nearest, Wrap=Clamp, VFlip=ON
       iChannel1 = channels/anya_vertices.png
@@ -12,7 +12,7 @@
       iChannel2 = channels/anya_triangles.png
                   Filter=Nearest, Wrap=Clamp, VFlip=ON
       iChannel3 = channels/anya_albedo.png
-                  Filter=Mipmap, Wrap=Repeat, VFlip=ON
+                  Filter=Mipmap, Wrap=Repeat, VFlip=OFF
 
     Scene additions: a procedural wooden desk, a fixed warm point light and
     secondary BVH shadow rays for both the figurine and the tabletop.
@@ -21,7 +21,8 @@
 */
 
 #define HIGH_QUALITY 1
-#define CHANNEL_TEXTURES_VFLIPPED 1
+#define DATA_CHANNELS_VFLIPPED 1
+#define ALBEDO_CHANNEL_VFLIPPED 0
 
 const float PI = 3.141592653589793;
 const float TAU = 6.283185307179586;
@@ -75,7 +76,7 @@ uvec4 byteTexel(sampler2D channel, int linearIndex)
     ivec2 size = textureSize(channel, 0);
     ivec2 coordinate = ivec2(linearIndex % size.x, linearIndex / size.x);
 
-#if CHANNEL_TEXTURES_VFLIPPED
+#if DATA_CHANNELS_VFLIPPED
     coordinate.y = size.y - 1 - coordinate.y;
 #endif
 
@@ -432,7 +433,7 @@ vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
     float lod = clamp(log2(max(texelFootprint * 0.45, 1.0)), 0.0, 4.0);
     vec2 atlasUv = uv;
 
-#if CHANNEL_TEXTURES_VFLIPPED
+#if ALBEDO_CHANNEL_VFLIPPED
     atlasUv.y = 1.0 - atlasUv.y;
 #endif
 
