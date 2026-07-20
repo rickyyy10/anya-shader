@@ -27,8 +27,18 @@ const float DEFAULT_CAMERA_RADIUS = 1.63;
 const float MIN_CAMERA_RADIUS = 0.90;
 const float MAX_CAMERA_RADIUS = 2.80;
 const float FAR_CLIP = 5.0;
-const vec3 FIXED_LIGHT_POSITION = vec3(-1.15, 1.65, 0.70);
-const vec3 FIXED_LIGHT_COLOR = vec3(1.00, 0.78, 0.56);
+const vec3 FIXED_LIGHT_POSITION = vec3(-1.15, 1.72, 0.70);
+const vec3 FIXED_LIGHT_COLOR = vec3(1.00, 0.82, 0.68);
+const vec3 FILL_LIGHT_DIRECTION = vec3(0.76, 0.32, -0.56);
+const vec3 FILL_LIGHT_COLOR = vec3(0.42, 0.58, 0.92);
+const vec3 RIM_LIGHT_DIRECTION = vec3(0.18, 0.62, -0.76);
+const vec3 RIM_LIGHT_COLOR = vec3(1.00, 0.58, 0.34);
+
+const vec3 AREA_LIGHT_OFFSETS[3] = vec3[3](
+    vec3(-0.10,  0.03, -0.05),
+    vec3( 0.09,  0.01, -0.07),
+    vec3( 0.02, -0.03,  0.11)
+);
 
 const vec3 MODEL_BOUNDS_MIN = vec3(-0.3583831787, 0.0000000000, -0.2966766357);
 const vec3 MODEL_BOUNDS_MAX = vec3( 0.3583831787, 0.9797363281,  0.2966766357);
@@ -91,6 +101,28 @@ vec3 octahedralNormal(vec2 encoded)
     float fold = clamp(-normal.z, 0.0, 1.0);
     normal.xy += mix(vec2(fold), vec2(-fold), step(vec2(0.0), normal.xy));
     return normalize(normal);
+}
+
+vec3 srgbToLinear(vec3 color)
+{
+    vec3 low = color / 12.92;
+    vec3 high = pow((color + 0.055) / 1.055, vec3(2.4));
+    return mix(low, high, step(vec3(0.04045), color));
+}
+
+vec3 linearToSrgb(vec3 color)
+{
+    color = max(color, 0.0);
+    vec3 low = color * 12.92;
+    vec3 high = 1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055;
+    return mix(low, high, step(vec3(0.0031308), color));
+}
+
+vec3 acesTonemap(vec3 color)
+{
+    vec3 numerator = color * (2.51 * color + 0.03);
+    vec3 denominator = color * (2.43 * color + 0.59) + 0.14;
+    return clamp(numerator / denominator, 0.0, 1.0);
 }
 
 vec3 loadVertexPosition(int vertexIndex)
@@ -355,45 +387,73 @@ float meshLightVisibility(vec3 point, vec3 normal,
     return 1.0 - step(-0.5, float(blocker.triangle));
 }
 
+float areaLightVisibility(vec3 point, vec3 normal)
+{
+#if HIGH_QUALITY
+    float visibility = 0.0;
+    for (int sampleIndex = 0; sampleIndex < 3; ++sampleIndex)
+    {
+        vec3 sampleVector = FIXED_LIGHT_POSITION
+            + AREA_LIGHT_OFFSETS[sampleIndex] - point;
+        float sampleDistance = length(sampleVector);
+        visibility += meshLightVisibility(point, normal,
+            sampleVector / max(sampleDistance, 1.0e-6), sampleDistance);
+    }
+    return visibility * (1.0 / 3.0);
+#else
+    vec3 sampleVector = FIXED_LIGHT_POSITION - point;
+    float sampleDistance = length(sampleVector);
+    return meshLightVisibility(point, normal,
+        sampleVector / max(sampleDistance, 1.0e-6), sampleDistance);
+#endif
+}
+
 vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
 {
     vec3 normal;
     vec2 uv;
     reconstructSurface(hit, rayDirection, normal, uv);
 
-    // Keep iChannel3 VFlip disabled; the exported glTF UVs match the image as-is.
-    // Explicit LOD avoids implicit screen derivatives crossing unrelated UV
-    // atlas islands, which otherwise creates bright seams on triangle edges.
-    vec3 albedo = textureLod(iChannel3, uv, 0.0).rgb;
+    // The custom-texture extension provides raw sRGB bytes. Decode explicitly
+    // and select a distance-dependent mip to preserve color while suppressing
+    // the high-frequency hair moire.
+    float atlasWidth = float(textureSize(iChannel3, 0).x);
+    float texelFootprint = hit.distance * atlasWidth
+        / max(iResolution.y, 1.0);
+    float lod = clamp(log2(max(texelFootprint * 0.45, 1.0)), 0.0, 4.0);
+    vec3 albedo = srgbToLinear(textureLod(iChannel3, uv, lod).rgb);
     vec3 viewDirection = -rayDirection;
     vec3 lightVector = FIXED_LIGHT_POSITION - point;
     float lightDistance = length(lightVector);
     vec3 lightDirection = lightVector / max(lightDistance, 1.0e-6);
-    vec3 fillDirection = normalize(vec3(0.72, 0.20, 0.52));
     float diffuse = max(dot(normal, lightDirection), 0.0);
     float visibility = 1.0;
 
     // Skip a complete secondary BVH traversal on back-facing surfaces that
     // cannot receive direct light from the fixed source.
     if (diffuse > 0.0001)
-        visibility = meshLightVisibility(point, normal,
-                                         lightDirection, lightDistance);
+        visibility = areaLightVisibility(point, normal);
 
     float attenuation = 1.0 / (1.0 + lightDistance * lightDistance * 0.30);
     float directLight = diffuse * visibility * attenuation;
-    float fill = max(dot(normal, fillDirection), 0.0);
+    float fill = max(dot(normal, normalize(FILL_LIGHT_DIRECTION)), 0.0);
     float hemisphere = normal.y * 0.5 + 0.5;
     vec3 halfVector = normalize(lightDirection + viewDirection);
     float specular = pow(max(dot(normal, halfVector), 0.0), 56.0)
         * visibility * attenuation;
     float rim = pow(1.0 - max(dot(normal, viewDirection), 0.0), 3.0);
 
-    vec3 lighting = vec3(0.22, 0.25, 0.31) * (0.72 + hemisphere * 0.28)
-                  + FIXED_LIGHT_COLOR * directLight * 1.85
-                  + vec3(0.24, 0.31, 0.46) * fill * 0.13;
+    float groundBounce = max(-normal.y, 0.0);
+    float rimLight = max(dot(normal, normalize(RIM_LIGHT_DIRECTION)), 0.0)
+        * pow(1.0 - max(dot(normal, viewDirection), 0.0), 2.0);
+    vec3 lighting = vec3(0.31, 0.34, 0.40) * (0.68 + hemisphere * 0.32)
+                  + FIXED_LIGHT_COLOR * directLight * 1.72
+                  + FILL_LIGHT_COLOR * fill * 0.24
+                  + vec3(0.42, 0.19, 0.08) * groundBounce * 0.16;
     vec3 color = albedo * lighting;
-    color += FIXED_LIGHT_COLOR * specular * 0.34;
-    color += vec3(0.25, 0.38, 0.62) * rim * 0.08;
+    color += FIXED_LIGHT_COLOR * specular * 0.28;
+    color += vec3(0.25, 0.38, 0.62) * rim * 0.05;
+    color += RIM_LIGHT_COLOR * rimLight * 0.16;
 
     // Subtle contact darkening toward the model's physical base.
     float baseDarkening = smoothstep(0.00, 0.16, point.y);
@@ -404,9 +464,13 @@ vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
 vec3 backgroundColor(vec3 rayDirection)
 {
     float height = clamp(rayDirection.y * 0.5 + 0.5, 0.0, 1.0);
-    return mix(vec3(0.022, 0.027, 0.038),
-               vec3(0.115, 0.096, 0.088),
-               smoothstep(0.08, 0.92, height));
+    vec3 color = mix(vec3(0.105, 0.125, 0.165),
+                     vec3(0.30, 0.29, 0.31),
+                     smoothstep(0.06, 0.94, height));
+    vec3 glowDirection = normalize(FIXED_LIGHT_POSITION
+        - vec3(0.0, MODEL_CENTER_Y, 0.0));
+    float studioGlow = pow(max(dot(rayDirection, glowDirection), 0.0), 7.0);
+    return color + vec3(0.16, 0.105, 0.070) * studioGlow;
 }
 
 vec3 shadeDesk(vec3 point, vec3 rayDirection)
@@ -437,8 +501,7 @@ vec3 shadeDesk(vec3 point, vec3 rayDirection)
     if (point.x > -0.60 && point.x < 2.80
         && point.z > -2.20 && point.z < 0.55)
     {
-        visibility = meshLightVisibility(point, normal,
-                                         lightDirection, lightDistance);
+        visibility = areaLightVisibility(point, normal);
     }
 
     float diffuse = max(dot(normal, lightDirection), 0.0)
@@ -529,9 +592,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
                     * step(1.0, iChannelResolution[2].x);
     color = mix(vec3(0.65, 0.02, 0.42), color, dataReady);
 
-    color = 1.0 - exp(-color * 1.08);
-    color = pow(max(color, 0.0), vec3(0.4545));
     float vignette = 1.0 - 0.18 * dot(uv * 0.58, uv * 0.58);
     color *= clamp(vignette, 0.76, 1.0);
+    color = linearToSrgb(acesTonemap(color * 1.10));
     fragColor = vec4(color, 1.0);
 }
