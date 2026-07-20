@@ -150,7 +150,9 @@ out vec4 outColor;
       const bitmap = await createImageBitmap(blob, {
         colorSpaceConversion: isDataTexture ? "none" : "default",
         premultiplyAlpha: "none",
-        imageOrientation: configuration.vflip ? "flipY" : "none"
+        // The desk-scene Shader compensates the extension's default VFlip=ON.
+        // Flip every source here so local testing matches that Shadertoy setup.
+        imageOrientation: "flipY"
       });
 
       const texture = gl.createTexture();
