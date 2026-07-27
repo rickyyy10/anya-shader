@@ -3,19 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101318">
-  <meta name="description" content="Anya WebGL2 fragment shader — live render and GLSL source.">
-  <title>Anya — Shader Viewer</title>
+  <meta name="theme-color" content="#383838">
+  <meta name="description" content="Anya WebGL2 shader viewer">
+  <title>Anya Shader</title>
   <style>
     :root {
-      color-scheme: dark;
-      --bar: #181c22;
-      --panel: #101318;
-      --editor: #0d1014;
-      --line: #2b313a;
-      --muted: #8994a3;
-      --text: #dce5ef;
-      --accent: #70e0d6;
+      color-scheme: light;
+      --top: #393939;
+      --page: #d8d9da;
+      --panel: #eeeeee;
+      --edge: #a7a7a7;
+      --orange: #f6a91a;
+      --orange-dark: #d58c08;
+      --editor-line: #e0e0e0;
+      --ink: #161616;
+      --muted: #707070;
     }
 
     * {
@@ -28,9 +30,9 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: var(--panel);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--page);
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     button,
@@ -41,131 +43,73 @@
 
     button:focus-visible,
     a:focus-visible {
-      outline: 2px solid var(--accent);
+      outline: 3px solid #1c76c9;
       outline-offset: 2px;
     }
 
     .app {
       height: 100%;
       display: grid;
-      grid-template-rows: 46px minmax(0, 1fr);
+      grid-template-rows: 62px minmax(0, 1fr);
     }
 
     .topbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-      padding: 0 15px;
-      border-bottom: 1px solid var(--line);
-      background: var(--bar);
-      box-shadow: 0 1px 12px rgba(0, 0, 0, 0.25);
-      z-index: 5;
+      gap: 28px;
+      padding: 0 34px;
+      color: #fff;
+      background: var(--top);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
     }
 
-    .brand,
-    .live-state,
-    .top-actions {
-      display: flex;
-      align-items: center;
+    .logo {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-style: italic;
+      font-weight: 700;
+      letter-spacing: -0.04em;
     }
 
-    .brand {
-      gap: 9px;
-      font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      letter-spacing: 0.11em;
-    }
-
-    .brand-dot,
-    .live-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 10px rgba(112, 224, 214, 0.72);
-    }
-
-    .live-state {
-      gap: 7px;
-      color: var(--muted);
-      font: 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-
-    .live-dot {
-      width: 6px;
-      height: 6px;
-    }
-
-    .top-actions {
-      gap: 7px;
-    }
-
-    .top-actions a {
-      padding: 6px 9px;
-      border: 1px solid transparent;
-      border-radius: 5px;
-      color: var(--muted);
-      font-size: 12px;
-      text-decoration: none;
-    }
-
-    .top-actions a:hover {
-      color: var(--text);
-      border-color: var(--line);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .workspace {
-      min-height: 0;
-      display: grid;
-      grid-template-columns: minmax(0, 54fr) minmax(390px, 46fr);
-    }
-
-    .pane {
+    .shader-name {
       min-width: 0;
-      min-height: 0;
-      display: grid;
-      grid-template-rows: 36px minmax(0, 1fr);
-      background: var(--panel);
-    }
-
-    .code-pane {
-      border-left: 1px solid var(--line);
-      background: var(--editor);
-    }
-
-    .panebar {
-      display: flex;
-      min-width: 0;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 0 11px 0 13px;
-      border-bottom: 1px solid var(--line);
-      background: #15191f;
-      color: var(--muted);
-      font: 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-
-    .pane-title {
       overflow: hidden;
+      color: #d1d1d1;
+      font-size: 14px;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .pane-action {
-      padding: 4px 7px;
-      border: 0;
-      border-radius: 4px;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      text-decoration: none;
+    .workbench {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(360px, 48fr) minmax(500px, 52fr);
+      gap: 26px;
+      padding: 26px 34px 30px;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.42), transparent 28%),
+        linear-gradient(130deg, #dfe0e1, #cfd1d2);
     }
 
-    .pane-action:hover {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.06);
+    .render-panel,
+    .editor-panel {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--edge);
+      border-radius: 7px;
+      background: var(--panel);
+      box-shadow: 0 2px 7px rgba(0, 0, 0, 0.18);
+    }
+
+    .render-panel {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) 45px;
+      align-self: start;
+      height: min(69vw, calc(100vh - 118px));
+      max-height: 720px;
+      min-height: 400px;
     }
 
     .render-frame {
@@ -173,77 +117,240 @@
       height: 100%;
       display: block;
       border: 0;
-      background: #080b10;
+      background: #59606b;
     }
 
-    .code-scroll {
+    .render-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 0 12px;
+      border-top: 1px solid #bcbcbc;
+      background: #f1f1f1;
+    }
+
+    .render-controls,
+    .render-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-button {
+      width: 31px;
+      height: 31px;
+      display: inline-grid;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      color: #111;
+      background: transparent;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .icon-button:hover {
+      background: #d7d7d7;
+    }
+
+    .render-info {
+      color: #282828;
+      font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .live-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-mark::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #111;
+    }
+
+    .editor-panel {
+      display: grid;
+      grid-template-rows: 47px 27px minmax(0, 1fr) 35px;
+      height: calc(100vh - 118px);
+    }
+
+    .tabs {
+      display: flex;
+      align-items: end;
+      gap: 6px;
+      padding: 7px 10px 0;
+      border-bottom: 5px solid var(--orange);
+      background: #c8c8c8;
+    }
+
+    .add-tab,
+    .image-tab {
+      height: 35px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 8px 8px 0 0;
+      font-weight: 700;
+    }
+
+    .add-tab {
+      width: 48px;
+      color: #111;
+      background: #aeaeae;
+      font-size: 24px;
+    }
+
+    .image-tab {
+      min-width: 112px;
+      gap: 8px;
+      padding: 0 18px;
+      color: #fff;
+      background: var(--orange);
+      font: 700 14px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .monitor-icon {
+      width: 16px;
+      height: 12px;
       position: relative;
+      border: 2px solid currentColor;
+    }
+
+    .monitor-icon::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      bottom: -6px;
+      width: 2px;
+      height: 4px;
+      background: currentColor;
+    }
+
+    .monitor-icon::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      bottom: -7px;
+      width: 8px;
+      height: 2px;
+      background: currentColor;
+    }
+
+    .input-bar,
+    .compile-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 11px;
+      color: #252525;
+      background: #ededed;
+      font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .input-bar {
+      border-bottom: 1px solid #c6c6c6;
+    }
+
+    .compile-bar {
+      border-top: 1px solid #c6c6c6;
+    }
+
+    .editor-scroll {
       min-height: 0;
       overflow: auto;
       margin: 0;
-      padding: 10px 0 36px;
-      background: var(--editor);
-      tab-size: 4;
-      scrollbar-color: #414a57 var(--editor);
+      padding: 6px 0 30px;
+      background: #fff;
+      scrollbar-color: #b0b0b0 #ededed;
       scrollbar-width: thin;
+      tab-size: 4;
     }
 
     code {
       display: block;
       min-width: max-content;
-      color: #c9d4df;
-      font: 12px/1.56 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #111;
+      font: 600 12px/1.48 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
     .code-line {
       display: block;
-      min-height: 1.56em;
-      padding-right: 24px;
+      min-height: 1.48em;
+      padding-right: 20px;
       white-space: pre;
     }
 
     .code-line::before {
       content: attr(data-line);
       display: inline-block;
-      width: 54px;
-      margin-right: 15px;
-      color: #46515f;
+      width: 49px;
+      margin-right: 12px;
+      padding-right: 9px;
+      border-right: 1px solid var(--editor-line);
+      color: #9a9a9a;
       text-align: right;
       user-select: none;
     }
 
     .code-line:hover {
-      background: rgba(255, 255, 255, 0.025);
+      background: #f5f7f8;
     }
+
+    .tok-comment { color: #a45100; }
+    .tok-preprocessor { color: #a42c2c; }
+    .tok-keyword { color: #9222a6; }
+    .tok-type { color: #78199c; }
+    .tok-builtin { color: #2849bf; }
+    .tok-number { color: #168253; }
+    .tok-string { color: #b25300; }
 
     .loading,
     .error {
+      display: block;
       padding: 18px;
       color: var(--muted);
       font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
     .error {
-      color: #ff9ca6;
+      color: #b2202d;
     }
 
-    @media (max-width: 820px) {
-      .live-state {
-        display: none;
+    @media (max-width: 900px) {
+      .app {
+        grid-template-rows: 52px minmax(0, 1fr);
       }
 
-      .workspace {
+      .topbar {
+        padding: 0 16px;
+      }
+
+      .logo {
+        font-size: 23px;
+      }
+
+      .workbench {
         grid-template-columns: 1fr;
-        grid-template-rows: minmax(300px, 53fr) minmax(280px, 47fr);
+        grid-template-rows: minmax(340px, 1fr) minmax(360px, 1fr);
+        gap: 16px;
+        padding: 16px;
+        overflow: auto;
       }
 
-      .code-pane {
-        border-top: 1px solid var(--line);
-        border-left: 0;
-      }
-
-      .top-actions a:first-child {
-        display: none;
+      .render-panel,
+      .editor-panel {
+        width: 100%;
+        height: auto;
+        min-height: 360px;
       }
     }
   </style>
@@ -251,48 +358,152 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand">
-        <span class="brand-dot" aria-hidden="true"></span>
-        <span>ANYA.GLSL</span>
-      </div>
-      <div class="live-state" aria-label="实时 WebGL2 渲染">
-        <span class="live-dot" aria-hidden="true"></span>
-        <span>WEBGL2 LIVE</span>
-      </div>
-      <nav class="top-actions" aria-label="项目链接">
-        <a href="anya_final_shadertoy.glsl">Raw shader</a>
-        <a href="https://github.com/rickyyy10/anya-shader">GitHub ↗</a>
-      </nav>
+      <h1 class="logo">ShaderView</h1>
+      <div class="shader-name">Anya / Image</div>
     </header>
 
-    <main class="workspace">
-      <section class="pane render-pane" aria-label="实时渲染效果">
-        <div class="panebar">
-          <span class="pane-title">Render</span>
-          <a class="pane-action" href="preview.html" target="_blank" rel="noopener">Fullscreen ↗</a>
-        </div>
+    <main class="workbench">
+      <section class="render-panel" aria-label="实时渲染">
         <iframe
           class="render-frame"
+          id="render-frame"
           src="preview.html?embed=1"
           title="Anya 实时 WebGL2 渲染"
           allow="fullscreen"
         ></iframe>
+        <div class="render-toolbar">
+          <div class="render-controls">
+            <button class="icon-button" id="restart-render" type="button" aria-label="重新载入渲染">↺</button>
+            <button class="icon-button" id="fullscreen-render" type="button" aria-label="全屏显示">⛶</button>
+          </div>
+          <div class="render-info">
+            <span class="live-mark">LIVE</span>
+            <span id="viewport-size">—</span>
+          </div>
+        </div>
       </section>
 
-      <section class="pane code-pane" aria-label="GLSL 源代码">
-        <div class="panebar">
-          <span class="pane-title">anya_final_shadertoy.glsl</span>
-          <button class="pane-action" id="copy-code" type="button">Copy</button>
+      <section class="editor-panel" aria-label="GLSL 代码">
+        <div class="tabs">
+          <div class="add-tab" aria-hidden="true">+</div>
+          <div class="image-tab"><span class="monitor-icon" aria-hidden="true"></span>Image</div>
         </div>
-        <pre class="code-scroll" aria-label="GLSL code"><code id="shader-code"><span class="loading">Loading shader…</span></code></pre>
+        <div class="input-bar"><span>▶ Shader inputs</span></div>
+        <pre class="editor-scroll" aria-label="GLSL source"><code id="shader-code"><span class="loading">Loading shader…</span></code></pre>
+        <div class="compile-bar">
+          <span id="compile-status">▶ Loading source</span>
+          <span id="character-count">0 chars</span>
+        </div>
       </section>
     </main>
   </div>
 
   <script>
     const codeElement = document.getElementById("shader-code");
-    const copyButton = document.getElementById("copy-code");
-    let shaderSource = "";
+    const compileStatus = document.getElementById("compile-status");
+    const characterCount = document.getElementById("character-count");
+    const renderFrame = document.getElementById("render-frame");
+    const viewportSize = document.getElementById("viewport-size");
+
+    const keywordWords = new Set([
+      "break", "case", "continue", "default", "discard", "do", "else",
+      "for", "if", "in", "inout", "out", "return", "struct", "switch",
+      "uniform", "while", "const", "true", "false"
+    ]);
+    const typeWords = new Set([
+      "bool", "int", "uint", "float", "double", "void", "vec2", "vec3",
+      "vec4", "ivec2", "ivec3", "ivec4", "uvec2", "uvec3", "uvec4",
+      "bvec2", "bvec3", "bvec4", "mat2", "mat3", "mat4", "sampler2D"
+    ]);
+    const builtinWords = new Set([
+      "abs", "acos", "asin", "atan", "ceil", "clamp", "cos", "cross",
+      "dot", "exp", "floor", "fract", "length", "log", "max", "min",
+      "mix", "mod", "normalize", "pow", "reflect", "sign", "sin", "smoothstep",
+      "sqrt", "step", "tan", "texelFetch", "texture", "textureLod", "textureSize"
+    ]);
+
+    function appendToken(parent, text, className) {
+      const token = document.createElement("span");
+      if (className) token.className = className;
+      token.textContent = text;
+      parent.appendChild(token);
+    }
+
+    function tokenizeLine(parent, text, state) {
+      let index = 0;
+      const firstNonSpace = text.search(/\S|$/);
+
+      if (!state.blockComment && text[firstNonSpace] === "#") {
+        appendToken(parent, text, "tok-preprocessor");
+        return;
+      }
+
+      while (index < text.length) {
+        if (state.blockComment) {
+          const end = text.indexOf("*/", index);
+          if (end < 0) {
+            appendToken(parent, text.slice(index), "tok-comment");
+            return;
+          }
+          appendToken(parent, text.slice(index, end + 2), "tok-comment");
+          index = end + 2;
+          state.blockComment = false;
+          continue;
+        }
+
+        if (text.startsWith("//", index)) {
+          appendToken(parent, text.slice(index), "tok-comment");
+          return;
+        }
+
+        if (text.startsWith("/*", index)) {
+          const end = text.indexOf("*/", index + 2);
+          if (end < 0) {
+            appendToken(parent, text.slice(index), "tok-comment");
+            state.blockComment = true;
+            return;
+          }
+          appendToken(parent, text.slice(index, end + 2), "tok-comment");
+          index = end + 2;
+          continue;
+        }
+
+        const character = text[index];
+        if (character === "\"" || character === "'") {
+          const quote = character;
+          let end = index + 1;
+          while (end < text.length) {
+            if (text[end] === "\\") end += 2;
+            else if (text[end++] === quote) break;
+          }
+          appendToken(parent, text.slice(index, end), "tok-string");
+          index = end;
+          continue;
+        }
+
+        const number = text.slice(index).match(/^(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?[uU]?/);
+        if (number) {
+          appendToken(parent, number[0], "tok-number");
+          index += number[0].length;
+          continue;
+        }
+
+        const identifier = text.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/);
+        if (identifier) {
+          const word = identifier[0];
+          let className = "";
+          if (keywordWords.has(word)) className = "tok-keyword";
+          else if (typeWords.has(word)) className = "tok-type";
+          else if (builtinWords.has(word)) className = "tok-builtin";
+          appendToken(parent, word, className);
+          index += word.length;
+          continue;
+        }
+
+        appendToken(parent, character, "");
+        index += 1;
+      }
+    }
 
     async function loadShader() {
       try {
@@ -300,34 +511,46 @@
           cache: "no-store"
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        shaderSource = await response.text();
-
+        const source = await response.text();
         const fragment = document.createDocumentFragment();
-        shaderSource.split("\n").forEach((sourceLine, index) => {
+        const state = { blockComment: false };
+
+        source.split("\n").forEach((sourceLine, lineIndex) => {
           const line = document.createElement("span");
           line.className = "code-line";
-          line.dataset.line = String(index + 1);
-          line.textContent = sourceLine || " ";
+          line.dataset.line = String(lineIndex + 1);
+          tokenizeLine(line, sourceLine || " ", state);
           fragment.appendChild(line);
         });
+
         codeElement.replaceChildren(fragment);
+        compileStatus.textContent = "▶ Source loaded";
+        characterCount.textContent = `${source.length} chars`;
       } catch (error) {
         const message = document.createElement("span");
         message.className = "error";
         message.textContent = `Could not load shader: ${error.message}`;
         codeElement.replaceChildren(message);
+        compileStatus.textContent = "▶ Load failed";
       }
     }
 
-    copyButton.addEventListener("click", async () => {
-      if (!shaderSource) return;
-      await navigator.clipboard.writeText(shaderSource);
-      copyButton.textContent = "Copied";
-      window.setTimeout(() => {
-        copyButton.textContent = "Copy";
-      }, 1200);
+    function updateViewportSize() {
+      const width = renderFrame.clientWidth;
+      const height = renderFrame.clientHeight;
+      viewportSize.textContent = `${width} × ${height}`;
+    }
+
+    document.getElementById("restart-render").addEventListener("click", () => {
+      renderFrame.src = renderFrame.src;
     });
 
+    document.getElementById("fullscreen-render").addEventListener("click", () => {
+      renderFrame.requestFullscreen();
+    });
+
+    window.addEventListener("resize", updateViewportSize);
+    updateViewportSize();
     loadShader();
   </script>
 </body>
