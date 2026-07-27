@@ -77,6 +77,10 @@
       border-color: rgba(115, 229, 224, 0.72);
       color: #9ff5ef;
     }
+
+    body.embedded .home-link {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -104,6 +108,10 @@
     }
 
     const parameters = new URLSearchParams(location.search);
+    document.body.classList.toggle(
+      "embedded",
+      parameters.get("embed") === "1"
+    );
     const shaderFile = parameters.get("shader") || "anya_final_shadertoy.glsl";
     const manifestFile = parameters.get("manifest")
       || "channels/manifest.json";
