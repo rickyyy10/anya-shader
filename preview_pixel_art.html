@@ -56,12 +56,34 @@
       left: 12px;
       pointer-events: none;
     }
+
+    .home-link {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 3;
+      padding: 9px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      color: #e8f2ff;
+      background: rgba(4, 7, 12, 0.76);
+      font: 12px/1.45 Menlo, Consolas, monospace;
+      text-decoration: none;
+      backdrop-filter: blur(12px);
+    }
+
+    .home-link:hover,
+    .home-link:focus-visible {
+      border-color: rgba(115, 229, 224, 0.72);
+      color: #9ff5ef;
+    }
   </style>
 </head>
 <body>
+  <a class="home-link" href="index.html" aria-label="返回作品首页">← Project</a>
   <canvas id="canvas"></canvas>
-  <pre id="stats">Loading GLB data textures…</pre>
-  <pre id="status"></pre>
+  <pre id="stats" aria-live="polite">Loading GLB data textures…</pre>
+  <pre id="status" aria-live="assertive"></pre>
 
   <script>
     const canvas = document.getElementById("canvas");
@@ -90,6 +112,7 @@
       Number(parameters.get("scale") || 1)));
     const timeOffset = Number(parameters.get("timeOffset") || 0);
     const timeScale = Number(parameters.get("timeScale") || 1);
+    let loadedChannelCount = 0;
 
     const vertexSource = `#version 300 es
 in vec2 position;
@@ -179,6 +202,8 @@ out vec4 outColor;
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
       bitmap.close();
+      loadedChannelCount += 1;
+      stats.textContent = `Loading data channels… ${loadedChannelCount}/4`;
       return {
         texture,
         width: configuration.width,

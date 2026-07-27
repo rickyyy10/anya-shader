@@ -1,6 +1,6 @@
 {
   "format": "anya-shadertoy-bvh-v1",
-  "source": "/Users/luoguiqi/Documents/shader/bonus/anya_final.glb",
+  "source": "anya_final.glb",
   "source_sha256": "85765020ab2f0eb84d6d49b7ff629a65ac68edc1250387f498266d44998e804b",
   "orientation": {
     "shader_x": "glb_x",

@@ -2,12 +2,19 @@
 
 这是从 `anya_final.glb` 重新生成的最终版本。Fragment Shader 直接读取真实三角网格、法线、UV 和底色贴图，并使用 BVH 在每个像素执行光线追踪；不使用旧的程序化 SDF 近似模型。
 
+## 在线作品网站
+
+GitHub Pages：<https://rickyyy10.github.io/anya-shader/>
+
+网站首页提供项目说明、三种实时渲染版本、Channel 数据结构说明和源码入口。
+
 ## 最终文件
 
 - `anya_final.glb`：唯一模型源文件。
 - `anya_final_shadertoy.glsl`：提交的 Fragment Shader。
+- `index.html`：GitHub Pages 作品首页。
 - `preview.html`：本地 WebGL2 / Shadertoy 兼容预览器。
-- `preview_front.png`：最终正面效果截图。
+- `preview_front.jpg`：网站首页使用的最终正面效果截图。
 - `channels/`：四个 iChannel 文件和 `manifest.json`。
 - `tools/glb_to_shadertoy.py`：重新生成 Channels 的转换工具。
 - `compile.sh`：本地 GLSL 语法检查。
