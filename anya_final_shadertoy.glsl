@@ -342,9 +342,9 @@ vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
     reconstructSurface(hit, rayDirection, normal, uv);
 
     // Keep iChannel3 VFlip disabled; the exported glTF UVs match the image as-is.
-    // Use a ray-footprint LOD for the atlas, then deliberately smooth only the
-    // pink hair. Requiring the coarse sample to remain pink prevents unrelated
-    // neighboring UV islands from bleeding into the hair silhouette.
+    // Use a ray-footprint LOD for the atlas. The pink hair is replaced with a
+    // stable material color below, so neither its baked weave nor bright colors
+    // leaking through coarse atlas mips can become visible on the model.
     float atlasWidth = float(textureSize(iChannel3, 0).x);
     float texelFootprint = hit.distance * atlasWidth
         / max(iResolution.y, 1.0);
@@ -352,17 +352,15 @@ vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
     vec3 albedo = textureLod(iChannel3, uv, lod).rgb;
 
     float redLead = albedo.r - max(albedo.g, albedo.b);
-    float pinkBalance = 1.0 - smoothstep(0.10, 0.24,
+    float pinkBalance = 1.0 - smoothstep(0.08, 0.18,
         abs(albedo.g - albedo.b));
-    float hairMask = smoothstep(0.20, 0.34, redLead) * pinkBalance;
-
-    vec3 smoothHair = textureLod(iChannel3, uv, min(lod + 4.0, 7.0)).rgb;
-    float smoothRedLead = smoothHair.r - max(smoothHair.g, smoothHair.b);
-    float smoothPinkBalance = 1.0 - smoothstep(0.10, 0.24,
-        abs(smoothHair.g - smoothHair.b));
-    float smoothHairMask = smoothstep(0.20, 0.34, smoothRedLead)
-        * smoothPinkBalance;
-    albedo = mix(albedo, smoothHair, hairMask * smoothHairMask);
+    float upperHead = smoothstep(0.40, 0.47, point.y);
+    float relativeRedness = redLead / max(albedo.r, 1.0e-4);
+    float hairMask = smoothstep(0.04, 0.10, redLead)
+        * smoothstep(0.42, 0.58, relativeRedness)
+        * pinkBalance * upperHead;
+    const vec3 HAIR_ALBEDO = vec3(0.42, 0.14, 0.17);
+    albedo = mix(albedo, HAIR_ALBEDO, hairMask);
     vec3 viewDirection = -rayDirection;
     vec3 keyDirection = normalize(vec3(-0.55, 0.82, 0.68));
     vec3 fillDirection = normalize(vec3(0.72, 0.20, 0.52));
@@ -378,7 +376,8 @@ vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
                   + vec3(0.28, 0.40, 0.62) * fill * 0.18
                   + vec3(0.18, 0.20, 0.24) * wrap * 0.14;
     vec3 color = albedo * lighting;
-    color += vec3(1.0, 0.92, 0.82) * specular * 0.20;
+    color += vec3(1.0, 0.92, 0.82) * specular
+        * mix(0.20, 0.07, hairMask);
     color += vec3(0.25, 0.38, 0.62) * rim * 0.08;
 
     // Subtle contact darkening toward the model's physical base.
