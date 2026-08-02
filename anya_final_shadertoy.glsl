@@ -342,9 +342,27 @@ vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
     reconstructSurface(hit, rayDirection, normal, uv);
 
     // Keep iChannel3 VFlip disabled; the exported glTF UVs match the image as-is.
-    // Explicit LOD avoids implicit screen derivatives crossing unrelated UV
-    // atlas islands, which otherwise creates bright seams on triangle edges.
-    vec3 albedo = textureLod(iChannel3, uv, 0.0).rgb;
+    // Use a ray-footprint LOD for the atlas, then deliberately smooth only the
+    // pink hair. Requiring the coarse sample to remain pink prevents unrelated
+    // neighboring UV islands from bleeding into the hair silhouette.
+    float atlasWidth = float(textureSize(iChannel3, 0).x);
+    float texelFootprint = hit.distance * atlasWidth
+        / max(iResolution.y, 1.0);
+    float lod = clamp(log2(max(texelFootprint * 0.45, 1.0)), 0.0, 4.0);
+    vec3 albedo = textureLod(iChannel3, uv, lod).rgb;
+
+    float redLead = albedo.r - max(albedo.g, albedo.b);
+    float pinkBalance = 1.0 - smoothstep(0.10, 0.24,
+        abs(albedo.g - albedo.b));
+    float hairMask = smoothstep(0.20, 0.34, redLead) * pinkBalance;
+
+    vec3 smoothHair = textureLod(iChannel3, uv, min(lod + 4.0, 7.0)).rgb;
+    float smoothRedLead = smoothHair.r - max(smoothHair.g, smoothHair.b);
+    float smoothPinkBalance = 1.0 - smoothstep(0.10, 0.24,
+        abs(smoothHair.g - smoothHair.b));
+    float smoothHairMask = smoothstep(0.20, 0.34, smoothRedLead)
+        * smoothPinkBalance;
+    albedo = mix(albedo, smoothHair, hairMask * smoothHairMask);
     vec3 viewDirection = -rayDirection;
     vec3 keyDirection = normalize(vec3(-0.55, 0.82, 0.68));
     vec3 fillDirection = normalize(vec3(0.72, 0.20, 0.52));
