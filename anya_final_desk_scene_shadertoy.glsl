@@ -437,7 +437,24 @@ vec3 shadeMesh(vec3 point, vec3 rayDirection, Hit hit)
     atlasUv.y = 1.0 - atlasUv.y;
 #endif
 
-    vec3 albedo = srgbToLinear(textureLod(iChannel3, atlasUv, lod).rgb);
+    vec3 albedoSrgb = textureLod(iChannel3, atlasUv, lod).rgb;
+
+    // The baked atlas contains a fine fabric-like grain in the pink hair.
+    // Select that material by color and blend in a coarser mip so the large
+    // painted gradients remain while the distracting strand pattern vanishes.
+    // The compatibility term protects UV-island edges from color bleeding.
+    float redLead = albedoSrgb.r - max(albedoSrgb.g, albedoSrgb.b);
+    float pinkBalance = 1.0 - smoothstep(0.10, 0.24,
+        abs(albedoSrgb.g - albedoSrgb.b));
+    float hairMask = smoothstep(0.20, 0.34, redLead) * pinkBalance;
+    vec3 smoothHairSrgb = textureLod(iChannel3, atlasUv,
+        min(lod + 3.0, 7.0)).rgb;
+    float compatibleMip = 1.0 - smoothstep(0.08, 0.22,
+        length(smoothHairSrgb - albedoSrgb));
+    albedoSrgb = mix(albedoSrgb, smoothHairSrgb,
+        hairMask * compatibleMip);
+
+    vec3 albedo = srgbToLinear(albedoSrgb);
     vec3 viewDirection = -rayDirection;
     vec3 lightVector = FIXED_LIGHT_POSITION - point;
     float lightDistance = length(lightVector);
